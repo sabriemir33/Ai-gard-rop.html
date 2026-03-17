@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Sabri Emir - REAL CLOTHING AI</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
+        canvas { position: absolute; width: 100vw; height: 100vh; transform: scaleX(-1); object-fit: cover; }
+        #ui { position: absolute; top: 20px; left: 20px; z-index: 100; padding: 15px; background: rgba(0,0,0,0.8); border: 2px solid #00f5ff; border-radius: 15px; color: #fff; }
+        #menu { position: absolute; right: 20px; top: 20px; bottom: 20px; width: 220px; background: rgba(0,0,0,0.9); border-radius: 20px; border: 2px solid #00f5ff; overflow-y: auto; padding: 10px; z-index: 200; }
+        .item { padding: 15px; margin-bottom: 10px; background: #1a1a1a; color: #fff; border-radius: 12px; cursor: pointer; text-align: center; border: 1px solid #333; transition: 0.3s; }
+        .item:hover { border-color: #00f5ff; }
+        .active { background: #00f5ff; color: #000; font-weight: bold; }
+        #start-screen { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; color: #00f5ff; }
+        button { padding: 20px 50px; font-size: 20px; background: #00f5ff; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="start-screen">
+    <h1>SABRI EMIR: REAL STYLE AI</h1>
+    <button onclick="start()">AYNAYI AÇ 🚀</button>
+</div>
+
+<div id="ui"><b>STİL:</b> <span id="current-name">Seçim Yap</span></div>
+<canvas id="out"></canvas>
+<div id="menu" id="list"></div>
+
+<script>
+    const canvas = document.getElementById('out');
+    const ctx = canvas.getContext('2d');
+    
+    // Senin Pinterest kombinlerine özel görseller (Şeffaf PNG'ler)
+    const clothes = [
+        { name: "Oversize Black Tee", url: "https://i.ibb.co/v4m0YvL/tshirt-black.png" },
+        { name: "Grey Street Hoodie", url: "https://i.ibb.co/M9S0yvB/hoodie-grey.png" },
+        { name: "Mero Style Jacket", url: "https://i.ibb.co/7N8pYhV/varsity-jacket.png" },
+        { name: "Cyber Tech Vest", url: "https://i.ibb.co/hM6vD2G/vest.png" }
+    ];
+
+    let activeImg = new Image();
+    const list = document.getElementById('menu');
+
+    clothes.forEach((c, i) => {
+        const d = document.createElement('div');
+        d.className = 'item';
+        d.innerText = c.name;
+        d.onclick = () => {
+            activeImg.src = c.url;
+            document.getElementById('current-name').innerText = c.name;
+            document.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
+            d.classList.add('active');
+        };
+        list.appendChild(d);
+        if(i===0) d.click();
+    });
+
+    function onResults(res) {
+        ctx.save();
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(res.image, 0, 0, canvas.width, canvas.height);
+
+        if(res.poseLandmarks) {
+            const p = res.poseLandmarks;
+            // Omuzlar arası mesafe ve merkez
+            const sL = p[11], sR = p[12];
+            const width = Math.abs(sL.x - sR.x) * canvas.width * 2.5; 
+            const height = width * 1.2;
+            const centerX = ((sL.x + sR.x) / 2) * canvas.width;
+            const centerY = ((sL.y + sR.y) / 2) * canvas.height + (height * 0.2);
+
+            // Gerçek kıyafet görselini vücuda oturt
+            ctx.translate(centerX, centerY);
+            ctx.drawImage(activeImg, -width/2, -height/2, width, height);
+        }
+        ctx.restore();
+    }
+
+    const pose = new Pose({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
+    pose.onResults(onResults);
+
+    async function start() {
+        document.getElementById('start-screen').style.display = 'none';
+        const vid = document.createElement('video');
+        const stream = await navigator.mediaDevices.getUserMedia({video: true});
+        vid.srcObject = stream;
+        await vid.play();
+        const cam = new Camera(vid, {
+            onFrame: async () => {
+                canvas.width = vid.videoWidth;
+                canvas.height = vid.videoHeight;
+                await pose.send({image: vid});
+            }
+        });
+        cam.start();
+    }
+</script>
+</body>
+</html>
